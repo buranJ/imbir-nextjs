@@ -21,9 +21,15 @@ const loadDoctor = async (id: string) => {
   // См. app/clinics/[id]/page.tsx — тот же приём: фетчим на сервере и
   // отдаём как initialData, чтобы клиент не показывал свой собственный
   // текст "Загрузка специалиста..." поверх уже отрисованного skeleton'а.
-  const doctor = await api.getDoctorById(id).catch(() => undefined);
+  // Услуги в детальной врача не приходят — отдельным запросом, параллельно.
+  // Без них на сервере блок «Услуги» появлялся бы после загрузки и сдвигал
+  // отзывы вниз; не получилось — клиент дозапросит их сам.
+  const [doctor, services] = await Promise.all([
+    api.getDoctorById(id).catch(() => undefined),
+    api.getServices({ doctor_id: id, page_size: 100 }).catch(() => undefined),
+  ]);
 
-  return { doctor, fetchedAt: Date.now() };
+  return { doctor, services, fetchedAt: Date.now() };
 };
 
 export default async function Page({
@@ -32,7 +38,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = await params;
-  const { doctor, fetchedAt } = await loadDoctor(resolvedParams.id);
+  const { doctor, services, fetchedAt } = await loadDoctor(resolvedParams.id);
 
   // Просмотр засчитывает браузер посетителя: сама страница из ISR-кеша, и её
   // серверный GET к бэку на каждого посетителя не уходит.
@@ -42,6 +48,7 @@ export default async function Page({
       <SpecialistDetailsPage
         id={resolvedParams.id}
         initialDoctor={doctor}
+        initialServices={services}
         initialDoctorUpdatedAt={fetchedAt}
       />
     </>

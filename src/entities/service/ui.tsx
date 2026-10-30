@@ -19,6 +19,9 @@ type Props = {
   clinicId?: string;
   // Минуты; не указана — строку не рисуем.
   duration?: null | number;
+  // Куда ведёт карточка. По умолчанию — запись на услугу (?service=id); на
+  // странице врача вместе с ней передаём и самого врача.
+  href?: string;
   id?: string;
   image?: StaticImageData | string;
   // Запрос по этой карточке уже летит — показываем спиннер вместо сердца и
@@ -75,6 +78,7 @@ export const ServiceCard: FC<Props> = ({
   clinic,
   clinicId,
   duration,
+  href: hrefProp,
   rating,
   reviews,
   price,
@@ -97,7 +101,8 @@ export const ServiceCard: FC<Props> = ({
   const hasRating = reviews !== undefined && reviews > 0;
   const user = useAuthStore((s) => s.user);
   const isDoctor = user?.role === "doctor";
-  const href = id ? `${ROUTES.RECORD}?service=${id}` : ROUTES.RECORD;
+  const href =
+    hrefProp ?? (id ? `${ROUTES.RECORD}?service=${id}` : ROUTES.RECORD);
   const stopProp = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();

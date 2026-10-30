@@ -24,9 +24,10 @@ import {
   fetchDoctorInterviews,
   interviewsFromDoctor,
 } from "@/entities/interview";
+import { ServiceCard } from "@/entities/service";
 
 // ИМПОРТЫ API
-import { api, doctorKeys, reviewKeys } from "@/shared/api";
+import { api, doctorKeys, reviewKeys, serviceKeys } from "@/shared/api";
 import {
   GeoIcon,
   HeaderBackIcon,
@@ -62,7 +63,11 @@ type Props = {
   // может пролежать там дольше, чем данные остаются свежими; без этой отметки
   // React Query считал бы их полученными только что и не обновлял.
   initialDoctorUpdatedAt?: number;
+  // Услуги врача, полученные там же и в тот же момент.
+  initialServices?: Awaited<ReturnType<typeof api.getServices>>;
 };
+
+type DoctorService = Awaited<ReturnType<typeof api.getServices>>[number];
 
 // Заглушка вместо фото врача. Инициал в фирменном градиентном круге — тот же
 // приём, что в сайдбаре кабинета и в карточках отзывов, поэтому читается как
@@ -91,6 +96,7 @@ export const SpecialistDetailsPage: FC<Props> = ({
   id,
   initialDoctor,
   initialDoctorUpdatedAt,
+  initialServices,
 }) => {
   const router = useRouter();
   const [isOfflineInfoOpen, setIsOfflineInfoOpen] = useState(false);
@@ -120,6 +126,7 @@ export const SpecialistDetailsPage: FC<Props> = ({
   const { isSaved, isPending, toggle } = useFavoriteToggle("doctor");
   const isFavorite = isSaved(Number(id));
   const isFavoritePending = isPending(Number(id));
+  const serviceFavorites = useFavoriteToggle("service");
 
   // Запись — главное действие на этой странице, а /record с её формой — самый
   // тяжёлый экран сайта. Без префетча (кнопки записи — это router.push, а не
@@ -144,6 +151,15 @@ export const SpecialistDetailsPage: FC<Props> = ({
   const { data: reviews = [] } = useQuery({
     queryKey: reviewKeys.byTarget("doctor", id),
     queryFn: () => api.getReviewsByDoctor(id),
+  });
+
+  // Услуги врача: и собственные (без клиники), и процедуры клиник, где его на
+  // них назначили. Тот же запрос, что у формы записи.
+  const { data: services = [] } = useQuery({
+    queryKey: serviceKeys.list({ doctor_id: id }),
+    queryFn: () => api.getServices({ doctor_id: id, page_size: 100 }),
+    initialData: initialServices,
+    initialDataUpdatedAt: initialDoctorUpdatedAt,
   });
 
   const { isSubmitting, submitReview } = useSubmitReview("doctor", id);
@@ -202,6 +218,29 @@ export const SpecialistDetailsPage: FC<Props> = ({
   const about = doctor.about;
   const workExperience = doctor.workExperience ?? [];
   const skills = doctor.skills ?? [];
+
+  // Одни и те же пропсы для обеих раскладок блока «Услуги».
+  const serviceCardProps = (service: DoctorService) => ({
+    id: service.id,
+    name: service.name,
+    category: service.category,
+    clinic: service.clinicName,
+    rating: service.rating,
+    reviews: service.reviews,
+    price: service.price,
+    duration: service.duration,
+    image: service.image,
+    // Запись сразу к этому врачу на эту услугу. Процедура клиники — в той же
+    // клинике; собственная услуга врача — по месту работы, если оно одно.
+    href: ROUTES.RECORD_FOR_DOCTOR(id, {
+      clinicId: service.clinicId || undefined,
+      serviceId: service.id,
+      workplaces: doctor.workplaces,
+    }),
+    isSaved: serviceFavorites.isSaved(Number(service.id)),
+    isPending: serviceFavorites.isPending(Number(service.id)),
+    onSave: () => serviceFavorites.toggle(Number(service.id)),
+  });
 
   return (
     <main className="min-h-screen bg-background md:bg-white flex flex-col relative pb-20 md:pb-0">
@@ -497,6 +536,36 @@ export const SpecialistDetailsPage: FC<Props> = ({
             </div>
           </div>
         </div>
+
+        {/* Услуг у врача может не быть вовсе — тогда и блока нет. Раскладка
+            как в каталоге /services: на телефоне горизонтальные карточки
+            списком, на десктопе сетка вертикальных. Стоит выше отзывов, как
+            и на странице клиники: это продолжение записи, а не её итог. */}
+        {services.length > 0 && (
+          <div className="mt-10 md:mt-20 px-2 md:px-0">
+            <h2 className="text-2xl font-semibold text-foreground mb-6 md:mb-8 px-2 md:px-0">
+              Услуги
+            </h2>
+            <div className="flex flex-col gap-2 md:hidden">
+              {services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  {...serviceCardProps(service)}
+                  variant="horizontal"
+                />
+              ))}
+            </div>
+            <div className="hidden md:grid md:grid-cols-4 gap-5 items-stretch">
+              {services.map((service) => (
+                <ServiceCard
+                  key={service.id}
+                  {...serviceCardProps(service)}
+                  variant="vertical"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Секция отзывов: форма доступна авторизованным, список — всегда */}
         {(reviews.length > 0 || (isAuthed && canReview)) && (

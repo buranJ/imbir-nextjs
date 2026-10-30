@@ -47,12 +47,13 @@ export const ROUTES = {
   // мы уже на странице этой клиники) — передайте clinicId напрямую; иначе
   // передайте workplaces и она подставится сама, только если это
   // единственное место работы врача (иначе неоднозначно, пусть выберет сам
-  // на странице записи).
+  // на странице записи). serviceId — сразу выбранная услуга этого врача.
   RECORD_FOR_DOCTOR: (
     doctorId: number | string,
     options?: {
       clinicId?: string;
       mode?: "offline" | "online";
+      serviceId?: string;
       workplaces?: { clinicId: string }[];
     },
   ) => {
@@ -64,6 +65,7 @@ export const ROUTES = {
         : undefined);
     if (clinicId) params.set("clinic", clinicId);
     if (options?.mode) params.set("mode", options.mode);
+    if (options?.serviceId) params.set("service", options.serviceId);
     return `/record?${params.toString()}`;
   },
 } as const;
