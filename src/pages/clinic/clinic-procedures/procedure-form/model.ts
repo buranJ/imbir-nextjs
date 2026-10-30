@@ -5,7 +5,46 @@ import {
   toDay,
 } from "@/entities/clinic-profile";
 
-import type { ClinicScheduleDay } from "@/shared/api";
+import {
+  type ClinicPrivateProfile,
+  type ClinicScheduleDay,
+  branchLabel,
+} from "@/shared/api";
+
+// Где проходит процедура. Главный адрес клиники филиалом не заведён: процедура
+// там — это branch_id = null, а в форме — пустая строка. Раньше в списке были
+// только филиалы, и главный адрес выбрать было нельзя: менеджер видел один
+// пункт (у Nova Clinic он ещё и назван как сама клиника) и не мог вернуть
+// процедуру на главный адрес, однажды выбрав филиал.
+export const MAIN_OFFICE_LABEL = "Главный офис";
+
+// Значение пункта «Главный офис» в выпадающем списке. Не пустая строка:
+// пустое значение Dropdown рисует серым, как незаполненное поле.
+export const MAIN_OFFICE_VALUE = "main-office";
+
+// branchId формы ↔ значение выпадающего списка.
+export const toBranchDropdownValue = (branchId: string) =>
+  branchId || MAIN_OFFICE_VALUE;
+export const fromBranchDropdownValue = (value: string) =>
+  value === MAIN_OFFICE_VALUE ? "" : value;
+
+const withAddress = (label: string, address?: string) =>
+  address?.trim() && address.trim() !== label
+    ? `${label} — ${address.trim()}`
+    : label;
+
+export const procedureBranchOptions = (
+  profile?: Pick<ClinicPrivateProfile, "address" | "branches">,
+) => [
+  {
+    label: withAddress(MAIN_OFFICE_LABEL, profile?.address),
+    value: MAIN_OFFICE_VALUE,
+  },
+  ...(profile?.branches ?? []).map((branch) => ({
+    label: withAddress(branchLabel(branch), branch.address),
+    value: String(branch.id),
+  })),
+];
 
 // Локальная модель формы процедуры — поля с макета «Добавить/Редактировать
 // процедуру». Бэк принимает их все: name/category/description/price/duration/

@@ -18,7 +18,6 @@ import { useServiceCategories } from "@/entities/service";
 
 import {
   addClinicService,
-  branchLabel,
   clinicCabinetKeys,
   getClinicDoctors,
 } from "@/shared/api";
@@ -41,9 +40,12 @@ import {
   EMPTY_SCHEDULE,
   ScheduleEditor,
   SpecialistsPicker,
+  fromBranchDropdownValue,
   linkedDoctorIds,
   lunchToApi,
+  procedureBranchOptions,
   scheduleToApi,
+  toBranchDropdownValue,
 } from "../procedure-form";
 
 export const ClinicNewProcedurePage: FC = () => {
@@ -59,10 +61,7 @@ export const ClinicNewProcedurePage: FC = () => {
 
   // Филиалы уже приходят в профиле клиники — отдельного запроса не нужно.
   const { rawProfile } = useClinicCabinet();
-  const branchOptions = (rawProfile?.branches ?? []).map((b) => ({
-    label: branchLabel(b),
-    value: String(b.id),
-  }));
+  const branchOptions = procedureBranchOptions(rawProfile);
 
   const [photoPreview, setPhotoPreview] = useState<string | undefined>();
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -308,15 +307,13 @@ export const ClinicNewProcedurePage: FC = () => {
         />
 
         {/* Бэк привязывает процедуру к филиалу (branch_id), а не к свободному
-            тексту: название и адрес у филиала уже есть. */}
+            тексту: название и адрес у филиала уже есть. По умолчанию —
+            главный офис (branch_id = null), он и выбран в списке. */}
         <Dropdown
           label="Филиал, где проводится процедура"
-          placeholder={
-            branchOptions.length ? "Выберите филиал" : "У клиники нет филиалов"
-          }
           options={branchOptions}
-          value={branchId}
-          onChange={setBranchId}
+          value={toBranchDropdownValue(branchId)}
+          onChange={(value) => setBranchId(fromBranchDropdownValue(value))}
         />
       </div>
 

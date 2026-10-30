@@ -47,12 +47,16 @@ import {
 import {
   EMPTY_SCHEDULE,
   FieldRow,
+  MAIN_OFFICE_LABEL,
   ScheduleEditor,
   SpecialistsPicker,
+  fromBranchDropdownValue,
   linkedDoctorIds,
   lunchToApi,
+  procedureBranchOptions,
   scheduleFromApi,
   scheduleToApi,
+  toBranchDropdownValue,
 } from "../procedure-form";
 
 export const ClinicProcedureDetailPage: FC = () => {
@@ -103,10 +107,7 @@ export const ClinicProcedureDetailPage: FC = () => {
 
   // Филиалы уже есть в профиле клиники — отдельного запроса не нужно.
   const { rawProfile } = useClinicCabinet();
-  const branchOptions = (rawProfile?.branches ?? []).map((b) => ({
-    label: branchLabel(b),
-    value: String(b.id),
-  }));
+  const branchOptions = procedureBranchOptions(rawProfile);
 
   const [synced, setSynced] = useState<typeof service>(null);
   if (service && service !== synced) {
@@ -504,17 +505,15 @@ export const ClinicProcedureDetailPage: FC = () => {
                 }
               />
               {/* Филиал вместо свободного текста: бэк хранит branch_id, а
-                  название с адресом берёт из самого филиала. */}
+                  название с адресом берёт из самого филиала. Без филиала —
+                  главный офис, его можно выбрать и вернуть обратно. */}
               <Dropdown
                 label="Филиал, где проводится процедура"
-                placeholder={
-                  branchOptions.length
-                    ? "Выберите филиал"
-                    : "У клиники нет филиалов"
-                }
                 options={branchOptions}
-                value={branchId}
-                onChange={setBranchId}
+                value={toBranchDropdownValue(branchId)}
+                onChange={(value) =>
+                  setBranchId(fromBranchDropdownValue(value))
+                }
               />
               <Checkbox
                 label="Процедура активна — пациенты видят её и могут записаться"
@@ -540,10 +539,12 @@ export const ClinicProcedureDetailPage: FC = () => {
               <FieldRow label="Описание">{service.description || "—"}</FieldRow>
               {/* У филиалов из админки имя часто пустое — тогда адрес. */}
               <FieldRow label="Филиал">
-                {service.branch ? branchLabel(service.branch) : null}
+                {service.branch
+                  ? branchLabel(service.branch)
+                  : MAIN_OFFICE_LABEL}
               </FieldRow>
               <FieldRow label="Адрес филиала">
-                {service.branch?.address}
+                {service.branch ? service.branch.address : rawProfile?.address}
               </FieldRow>
             </>
           )}
